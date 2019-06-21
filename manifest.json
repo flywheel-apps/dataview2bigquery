@@ -1,0 +1,52 @@
+{
+	"name": "view-bq-export",
+	"label": "View BQ export",
+	"description": "Flywheel view export to BigQuery",
+	"version": "0.3.0",
+	"flywheel": "0",
+	"inputs": {
+		"key": {
+			"base": "api-key"
+		}
+	},
+	"config": {
+		"view_id": {
+			"description": "Data-view id",
+			"type": "string",
+			"optional": true
+		},
+		"json": {
+			"description": "Data-view json",
+			"type": "string",
+			"optional": true
+		},
+		"project_id": {
+			"description": "Google project",
+			"type": "string"
+		},
+		"dataset": {
+			"description": "BigQuery dataset",
+			"type": "string"
+		},
+		"table": {
+			"description": "BigQuery table",
+			"type": "string"
+		},
+		"log_level": {
+			"description": "Log verbosity level (ERROR|WARNING|INFO|DEBUG)",
+			"type": "string",
+			"default": "INFO"
+		}
+	},
+	"author": "David Farkas",
+	"maintainer": "David Farkas",
+	"license": "Other",
+	"source": "https://github.com/flywheel-apps/dataview2bigquery",
+	"url": "https://github.com/flywheel-apps/dataview2bigquery",
+	"command": "python run.py",
+	"custom": {
+		"gear-builder": {
+			"image": "bq-export"
+		}
+	}
+}
