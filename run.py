@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
 import base64
 import json
 import logging
 import pprint
+import sys
 from collections import OrderedDict
 
 import flywheel
