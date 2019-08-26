@@ -1,27 +1,33 @@
 {
-	"name": "view-bq-export",
-	"label": "View BQ export",
-	"description": "Flywheel view export to BigQuery",
-	"version": "0.3.0",
+	"name": "csv2bq",
+	"label": "CSV to BigQuery export",
+	"description": "Export CSV files from Flywheel to Google BigQuery",
+	"version": "0.3.1",
 	"flywheel": "0",
 	"inputs": {
 		"key": {
 			"base": "api-key"
+		},
+		"csv_input_file": {
+			"base": "file",
+			"description": "CSV file",
+			"type": {"enum": ["csv"]},
+			"optional": true
+		},
+		"view_spec_json": {
+			"base": "file",
+			"description": "Json description of a data view.",
+			"type": {"enum": ["json"]},
+			"optional": true
 		}
 	},
 	"config": {
-		"view_id": {
-			"description": "Data-view id",
-			"type": "string",
-			"optional": true
+		"gcp_project": {
+			"description": "GCP project",
+			"type": "string"
 		},
-		"json": {
-			"description": "Data-view json",
-			"type": "string",
-			"optional": true
-		},
-		"project_id": {
-			"description": "Google project",
+		"gcp_token_id": {
+			"description": "GCP auth token id",
 			"type": "string"
 		},
 		"dataset": {
@@ -32,8 +38,18 @@
 			"description": "BigQuery table",
 			"type": "string"
 		},
+		"saved_view_id": {
+			"description": "Id of the saved data view to export (if provided input file will be ignored)",
+			"type": "string",
+			"default": ""
+		},
+		"container_id": {
+			"description": "Run data view against this container",
+			"type": "string",
+			"default": ""
+		},
 		"log_level": {
-			"description": "Log verbosity level (ERROR|WARNING|INFO|DEBUG)",
+			"description": "Log verbosity (INFO*|DEBUG)",
 			"type": "string",
 			"default": "INFO"
 		}
@@ -41,12 +57,14 @@
 	"author": "David Farkas",
 	"maintainer": "David Farkas",
 	"license": "Other",
-	"source": "https://github.com/flywheel-apps/dataview2bigquery",
-	"url": "https://github.com/flywheel-apps/dataview2bigquery",
+	"source": "https://github.com/flywheel-apps/csv2bq",
+	"url": "https://github.com/flywheel-apps/csv2bq",
 	"command": "python run.py",
 	"custom": {
+		"docker-image": "flywheel-apps/csv2bq:0.3.1",
 		"gear-builder": {
-			"image": "bq-export"
+			"category": "converter",
+			"image": "flywheel-apps/csv2bq:0.3.1"
 		}
 	}
 }

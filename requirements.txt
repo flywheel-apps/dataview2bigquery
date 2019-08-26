@@ -1,3 +1,4 @@
-requests
 flywheel-sdk
-requests-toolbelt
+google-api-python-client
+google-cloud-bigquery
+requests

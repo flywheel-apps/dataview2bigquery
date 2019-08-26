@@ -1,0 +1,45 @@
+import mock
+import pytest
+from io import StringIO
+
+import run
+
+CONFIG = {
+    'log_level': 'INFO',
+    'project_id': 'Neuroscience',
+    'auth_token_id': '3Dsg94Af17',
+    'project_id': 'healthcare-api',
+    'dataset': 'test_dataset',
+    'table': 'test_table',
+}
+
+@mock.patch('run.bigquery')
+@mock.patch('run.FwApi')
+def test_main(MockFwApi, mock_bigquery):
+    mock_context = mock.Mock()
+    mock_context.configure_mock(config=CONFIG)
+    mock_context.get_input.return_value = {'key': 'docker.local.flywheel.io'}
+
+    mock_file = StringIO()
+    mock_context.open_input.return_value.__enter__ = lambda *args: mock_file
+    mock_context.open_input.return_value.__exit__ = lambda *args: None
+
+    expected_load_job_config = mock_bigquery.LoadJobConfig()
+    expected_load_job_config.autodetect=True
+    expected_load_job_config.write_disposition='WRITE_TRUNCATE'
+    expected_load_job_config.maxBadRecords=0
+    expected_load_job_config.ignore_unknown_values=False
+    expected_load_job_config.source_format='CSV'
+
+    mock_bigquery.SourceFormat.CSV = 'CSV'
+    mock_bq_client = mock_bigquery.Client()
+
+    with mock.patch('builtins.open', mock.mock_open(read_data=''), create=True) as mock_builtin_open:
+        run.main(mock_context)
+
+    mock_bq_client.create_dataset.assert_called_once_with('test_dataset')
+    mock_bq_client.dataset.assert_called_once_with('test_dataset')
+    mock_bq_client.dataset.return_value.table.assert_called_once_with('test_table')
+    mock_bq_client.load_table_from_file.assert_called_once_with(mock_file,
+                                                                mock_bq_client.dataset.return_value.table.return_value,
+                                                                job_config=expected_load_job_config)

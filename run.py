@@ -1,53 +1,37 @@
 #!/usr/bin/env python3
-import base64
-import json
 import logging
-import pprint
-import sys
-from collections import OrderedDict
+import os
+import io
+import json
+
+import google.cloud.bigquery as bigquery
+import google.oauth2.credentials
+import requests
 
 import flywheel
 from flywheel.api import ViewsApi
-from requests_toolbelt import MultipartEncoder
 
 
 log = logging.getLogger('flywheel:bq-export')
-logging.basicConfig(
-    format='%(asctime)s %(name)15.15s %(levelname)4.4s %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    level=logging.INFO,
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
-
-class MultipartRelatedEncoder(MultipartEncoder):
-    """A multipart/related encoder"""
-
-    @property
-    def content_type(self):
-        return str(
-            'multipart/related; boundary={0}'.format(self.boundary_value)
-        )
-
-    def _iter_fields(self):
-        # change content-disposition from form-data to attachment
-        for field in super(MultipartRelatedEncoder, self)._iter_fields():
-            # content_type = field.headers['Content-Type']
-            field.headers['Content-Disposition'] = None
-            if field.headers['Content-Type'] == 'text/csv':
-                field.headers['Content-Transfer-Encoding'] = 'base64'
-            yield field
 
 
 def main(context):
-    api_key = inputs['key']['key']
-    container_id = context.config.get('container_id')
-    google_project_id = context.config.get('project_id')
-    dataset = context.config.get('dataset')
-    table = context.config.get('table')
-    json_input = context.config.get('json')
-    view_id = context.config.get('view_id')
+    log.setLevel(getattr(logging, context.config['log_level']))
+    google_project_id = context.config['gcp_project']
+    dataset_id = context.config['dataset']
+    table_id = context.config['table']
+
+    api_key = context.get_input('key')['key']
+    api_uri = api_key.rsplit(':', 1)[0]
+    if not api_uri.startswith('http'):
+        api_uri = 'https://' + api_uri
 
     views_api = ViewsApi(context.client.api_client)
+    container_id = context.config.get('container_id')
+    view_id = context.config.get('saved_view_id')
+    json_input = context.get_input_path('view_spec_json')
+    csv_input = context.get_input_path('csv_input_file')
+    container_id = context.client.lookup(container_id)['_id']
 
     if json_input:
         data = views_api.evaluate_view_adhoc(container_id, body=json.loads(json_input),
@@ -57,54 +41,48 @@ def main(context):
         data = views_api.evaluate_view(view_id, container_id,
                                        format='csv', _preload_content=False,
                                        _return_http_data_only=True).content.decode('utf-8')
+    elif csv_input:
+        with context.open_input('csv_input_file', 'r') as source_file:
+            data = source_file.read()
+            # job = bq.load_table_from_file(source_file, table, job_config=job_config)
     else:
-        exit(1)
-        return
+        print('Nothing to do. Exiting ...')
+        exit(0)
 
-    # TODO: get api key in a better way
-    # try to get current user Google oauth2 access token, if user is not logged in use core's
-    # default credentials
-    try:
-        resp = fw.api_client.call_api('/gcp/auth/token', 'GET', **{
-            'auth_settings': ['ApiKey'],
-            '_return_http_data_only': True,
-            '_preload_content': False
-        })
-        bq_token = resp.json()['access_token']
-        log.info("Use user's google credentials")
-    except flywheel.ApiException:
-        bq_token = fw.api_client.call_api('/gcp/token', 'GET', **{
-            'auth_settings': ['ApiKey'],
-            '_return_http_data_only': True,
-            '_preload_content': False
-        }).json()['token']
-        log.info("Use core's google service account")
+    # get google access token from core and create bigquery client with it
+    # (using requests for non-sdk-accessible core endpoint)
+    response = requests.get(
+        api_uri + '/api/users/self/tokens/' + context.config['gcp_token_id'],
+        headers={'Authorization': 'scitran-user ' + api_key})
+    response.raise_for_status()
+    gcp_access_token = response.json()['access_token']
+    credentials = google.oauth2.credentials.Credentials(gcp_access_token)
+    bq = bigquery.Client(google_project_id, credentials)
 
-    # TODO: gcp removed, use official bigquery api client lib
-    bq = gcp.BigQuery(google_project_id, bq_token)
+    # create new bigquery dataset if it doesn't exist yet
+    if dataset_id not in [ds.dataset_id for ds in bq.list_datasets()]:
+        log.debug('creating bigquery dataset %s', dataset_id)
+        bq.create_dataset(dataset_id)
 
-    if dataset not in bq.list_datasets():
-        log.debug('creating bq dataset %s', dataset)
-        bq.create_dataset(dataset)
+    # get table and create job config
+    table = bq.dataset(dataset_id).table(table_id)
+    job_config = bigquery.LoadJobConfig(
+        autodetect=True,
+        ignore_unknown_values=False,
+        maxBadRecords=0,
+        source_format=bigquery.SourceFormat.CSV,
+        write_disposition='WRITE_TRUNCATE',
+    )
 
-    load_config = {
-        'configuration': {
-            'load': {
-                'autodetect': True,
-                'destinationTable': {
-                    'projectId': google_project_id,
-                    'datasetId': dataset,
-                    'tableId': table
-                },
-                'writeDisposition': 'WRITE_TRUNCATE',
-                'ignoreUnknownValues': False,
-                'maxBadRecords': 0,
-                'sourceFormat': 'CSV'
-            }
-        }
-    }
+    # TODO consider CSV encoding/separator detection
+    # TODO finalize Zsolt's code below...
+    # with context.open_input('input_file', 'rb') as csv:
+    #    lines = [line.decode() for line in csv]
+    #    if 'num' not in lines[0]:
+    #        lines[0] = '{},{}'.format('num,', lines[0])
+    #        for num, line in enumerate(lines[1:], 1):
+    #            lines[num] = '{},{}'.format(num, line)
 
-    # numbering rows
     numbered_data = []
     for i, row in enumerate(data.split('\n')):
         if i == 0:
@@ -114,21 +92,31 @@ def main(context):
     data = '\n'.join(numbered_data)
     data = data + '\n'
 
-    m = MultipartRelatedEncoder(
-        fields=OrderedDict({
-            'a': (None, json.dumps(load_config), 'application/json; charset=UTF-8'),
-            'b': ('test.csv', base64.b64encode(data.encode('utf-8')), 'text/csv'),
-        })
-    )
+    job = bq.load_table_from_file(io.BytesIO(data.encode('utf-8')),
+                                            table,
+                                            job_config=job_config,
+                                            rewind=True)
 
-    gcp_session = gcp.GCPSession('https://www.googleapis.com/upload/bigquery/v2/projects/healthcare-api-214323',
-                                 bq_token)
-    resp = gcp_session.post('/jobs?uploadType=multipart', data=m, headers={'Content-Type': m.content_type})
-    bq.get_job(resp.json()['jobReference']['jobId'])
+    job.result()
+    log.info('Loaded {} rows into {}:{}.'.format(job.output_rows, dataset_id, table_id))
+
+
+def enable_docker_local_access(context):
+    """Enable accessing docker.local.flywheel.io within a gear (ie. in development)"""
+    if 'docker.local.flywheel.io' in context.get_input('key').get('key', ''):
+        if os.path.exists('docker_host'):
+            docker_host = open('docker_host').read().strip()
+            with open('/etc/hosts', 'a') as hosts:
+                hosts.write(docker_host + '\tdocker.local.flywheel.io\n')
+        else:
+            cmd = "ip -o route get to 8.8.8.8 | sed 's/^.*src \([^ ]*\).*$/\1/;q' > docker_host"
+            log.warning('cannot patch /etc/hosts with docker.local.flywheel.io - docker_host file not found. '
+                        "Run the following command to create the file in your gear's root dir: \n%s", cmd)
 
 
 if __name__ == '__main__':
     with flywheel.GearContext() as context:
+        enable_docker_local_access(context)
         context.init_logging()
         context.log_config()
         main(context)

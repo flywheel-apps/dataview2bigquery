@@ -1,5 +1,6 @@
 **
 
-!run.py
-!requirements.txt
 !manifest.json
+!requirements.txt
+!run.py
+!test-requirements.txt
