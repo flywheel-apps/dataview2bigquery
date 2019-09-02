@@ -1,8 +1,8 @@
 {
-	"name": "csv2bq",
-	"label": "CSV to BigQuery export",
-	"description": "Export CSV files from Flywheel to Google BigQuery",
-	"version": "0.3.1",
+	"name": "dataview2bigquery",
+	"label": "Data view to BigQuery export",
+	"description": "Export Flywheel data view to BigQuery",
+	"version": "0.4.0",
 	"flywheel": "0",
 	"inputs": {
 		"key": {
@@ -54,17 +54,17 @@
 			"default": "INFO"
 		}
 	},
-	"author": "David Farkas",
-	"maintainer": "David Farkas",
+	"author": "Flywheel <support@flywheel.io>",
+	"maintainer": "Flywheel <support@flywheel.io>",
 	"license": "Other",
-	"source": "https://github.com/flywheel-apps/csv2bq",
-	"url": "https://github.com/flywheel-apps/csv2bq",
+	"source": "https://github.com/flywheel-apps/dataview2bigquery",
+	"url": "https://github.com/flywheel-apps/dataview2bigquery",
 	"command": "python run.py",
 	"custom": {
-		"docker-image": "flywheel-apps/csv2bq:0.3.1",
+		"docker-image": "flywheel-apps/dataview2bigquery:0.4.0",
 		"gear-builder": {
 			"category": "converter",
-			"image": "flywheel-apps/csv2bq:0.3.1"
+			"image": "flywheel-apps/dataview2bigquery:0.4.0"
 		}
 	}
 }
