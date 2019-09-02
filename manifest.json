@@ -44,7 +44,7 @@
 			"default": ""
 		},
 		"container_id": {
-			"description": "Run data view against this container",
+			"description": "Container path to run data-view on (group/proj/subj/sess/acq)",
 			"type": "string",
 			"default": ""
 		},

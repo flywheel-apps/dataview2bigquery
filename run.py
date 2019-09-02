@@ -44,7 +44,6 @@ def main(context):
     elif csv_input:
         with context.open_input('csv_input_file', 'r') as source_file:
             data = source_file.read()
-            # job = bq.load_table_from_file(source_file, table, job_config=job_config)
     else:
         print('Nothing to do. Exiting ...')
         exit(0)
@@ -61,7 +60,7 @@ def main(context):
 
     # create new bigquery dataset if it doesn't exist yet
     if dataset_id not in [ds.dataset_id for ds in bq.list_datasets()]:
-        log.debug('creating bigquery dataset %s', dataset_id)
+        log.info('creating bigquery dataset %s', dataset_id)
         bq.create_dataset(dataset_id)
 
     # get table and create job config
@@ -75,13 +74,6 @@ def main(context):
     )
 
     # TODO consider CSV encoding/separator detection
-    # TODO finalize Zsolt's code below...
-    # with context.open_input('input_file', 'rb') as csv:
-    #    lines = [line.decode() for line in csv]
-    #    if 'num' not in lines[0]:
-    #        lines[0] = '{},{}'.format('num,', lines[0])
-    #        for num, line in enumerate(lines[1:], 1):
-    #            lines[num] = '{},{}'.format(num, line)
 
     numbered_data = []
     for i, row in enumerate(data.split('\n')):
@@ -98,7 +90,7 @@ def main(context):
                                             rewind=True)
 
     job.result()
-    log.info('Loaded {} rows into {}:{}.'.format(job.output_rows, dataset_id, table_id))
+    log.info('Loaded %s rows into %s:%s.', job.output_rows, dataset_id, table_id)
 
 
 def enable_docker_local_access(context):
