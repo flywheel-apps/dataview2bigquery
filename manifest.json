@@ -1,0 +1,70 @@
+{
+	"name": "dataview2bigquery",
+	"label": "Data view to BigQuery export",
+	"description": "Export Flywheel data view to BigQuery",
+	"version": "0.4.0",
+	"flywheel": "0",
+	"inputs": {
+		"key": {
+			"base": "api-key"
+		},
+		"csv_input_file": {
+			"base": "file",
+			"description": "CSV file",
+			"type": {"enum": ["csv"]},
+			"optional": true
+		},
+		"view_spec_json": {
+			"base": "file",
+			"description": "Json description of a data view.",
+			"type": {"enum": ["json"]},
+			"optional": true
+		}
+	},
+	"config": {
+		"gcp_project": {
+			"description": "GCP project",
+			"type": "string"
+		},
+		"gcp_token_id": {
+			"description": "GCP auth token id",
+			"type": "string"
+		},
+		"dataset": {
+			"description": "BigQuery dataset",
+			"type": "string"
+		},
+		"table": {
+			"description": "BigQuery table",
+			"type": "string"
+		},
+		"saved_view_id": {
+			"description": "Id of the saved data view to export (if provided input file will be ignored)",
+			"type": "string",
+			"default": ""
+		},
+		"container_id": {
+			"description": "Container path to run data-view on (group/proj/subj/sess/acq)",
+			"type": "string",
+			"default": ""
+		},
+		"log_level": {
+			"description": "Log verbosity (INFO*|DEBUG)",
+			"type": "string",
+			"default": "INFO"
+		}
+	},
+	"author": "Flywheel <support@flywheel.io>",
+	"maintainer": "Flywheel <support@flywheel.io>",
+	"license": "Other",
+	"source": "https://github.com/flywheel-apps/dataview2bigquery",
+	"url": "https://github.com/flywheel-apps/dataview2bigquery",
+	"command": "python run.py",
+	"custom": {
+		"docker-image": "flywheel-apps/dataview2bigquery:0.4.0",
+		"gear-builder": {
+			"category": "converter",
+			"image": "flywheel-apps/dataview2bigquery:0.4.0"
+		}
+	}
+}
